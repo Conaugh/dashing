@@ -242,6 +242,60 @@
                     : "System.Data.SqlClient");
         }
 
+        private static void ConfigureAddWeave(CommandLineApplication app) {
+            app.Command(
+                "addweave",
+                c => {
+                    c.Description = "Executes a function to add weaving to a project";
+                    c.HelpOption("-?|-h|--help");
+
+                    // attempts to weave the assemblies at the specified location
+                    var projectFilePath = c.Option("-p|--projectfilepath <path>", "Specify the path to the project to which weaving should be added", CommandOptionType.SingleValue);
+                    var configurationType = c.Option("-ct|--configurationtype <typefullname>", "The full name of the configuration type", CommandOptionType.SingleValue);
+                    var assemblyExtension = c.Option("-ae|--assemblyextension <extension>", "The extension of the assembly (when it has been built, e.g. 'dll', 'exe')", CommandOptionType.SingleValue);
+
+                    c.OnExecute(
+                        () => {
+                            if (!projectFilePath.HasValue()) {
+                                Console.WriteLine("Please specify the path to the project to which weaving should be added");
+                                return 1;
+                            }
+
+                            if (!configurationType.HasValue()) {
+                                Console.WriteLine("Please specify the configuration full name");
+                                return 1;
+                            }
+
+                            if (!assemblyExtension.HasValue()) {
+                                Console.WriteLine("Please specify the assembly extension e.g. 'dll', 'exe'");
+                                return 1;
+                            }
+                            
+                            var projectFileDir = Path.GetFullPath(projectFilePath.Value());
+                            assemblySearchDirectories.Insert(0, projectFileDir); // favour user code over dashing code
+                            try {
+                                ExecuteAddWeave(projectFilePath, configurationType, assemblyExtension);
+                                return 0;
+                            }
+                            catch (Exception ex) {
+                                Console.WriteLine(ex.Message);
+                                return 1;
+                            }
+                        });
+                });
+        }
+
+        private static void ExecuteAddWeave(CommandOption projectFilePath, CommandOption configurationType, CommandOption assemblyExtension) {
+            var seeder = new Seeder();
+            seeder.Execute(
+                LoadType<ISeeder>(seederAssemblyPath.Value(), seederType.Value()),
+                LoadType<IConfiguration>(configurationAssemblyPath.Value(), configurationType.Value()),
+                connectionString.Value(),
+                provider.HasValue()
+                    ? provider.Value()
+                    : "System.Data.SqlClient");
+        }
+
         private static IEnumerable<KeyValuePair<string, string>> GetExtraPluralizationWords(CommandOption extraPluralizationWords) {
             return (extraPluralizationWords.Values ?? Enumerable.Empty<string>()).Select(
                 s => {
