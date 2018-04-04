@@ -1,7 +1,8 @@
 {
   "profiles": {
     "Dashing.Cli": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "addweave -p \"C:\\Development\\Test\\NetCoreTest\\NetCoreTest\\NetCoreTest.csproj\" -c \"Test.Type.Yolo\" -a \"dll\""
     },
     "script": {
       "commandName": "Project",

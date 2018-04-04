@@ -9,7 +9,9 @@
     using Dashing.Configuration;
     using Dashing.Extensions;
 
+    using Microsoft.Build.Construction;
     using Microsoft.Extensions.CommandLineUtils;
+    using Microsoft.Build.Evaluation;
 #if !COREFX
     using System.Configuration;
 #endif
@@ -35,6 +37,7 @@
             ConfigureScript(app);
             ConfigureMigrate(app);
             ConfigureSeed(app);
+            ConfigureAddWeave(app);
 
             app.OnExecute(
                 () => {
@@ -251,8 +254,8 @@
 
                     // attempts to weave the assemblies at the specified location
                     var projectFilePath = c.Option("-p|--projectfilepath <path>", "Specify the path to the project to which weaving should be added", CommandOptionType.SingleValue);
-                    var configurationType = c.Option("-ct|--configurationtype <typefullname>", "The full name of the configuration type", CommandOptionType.SingleValue);
-                    var assemblyExtension = c.Option("-ae|--assemblyextension <extension>", "The extension of the assembly (when it has been built, e.g. 'dll', 'exe')", CommandOptionType.SingleValue);
+                    var configurationType = c.Option("-c|--configurationtype <typefullname>", "The full name of the configuration type", CommandOptionType.SingleValue);
+                    var assemblyExtension = c.Option("-a|--assemblyextension <extension>", "The extension of the assembly (when it has been built, e.g. 'dll', 'exe')", CommandOptionType.SingleValue);
 
                     c.OnExecute(
                         () => {
@@ -271,10 +274,10 @@
                                 return 1;
                             }
                             
-                            var projectFileDir = Path.GetFullPath(projectFilePath.Value());
-                            assemblySearchDirectories.Insert(0, projectFileDir); // favour user code over dashing code
+                            var projectFileFullPath = Path.GetFullPath(projectFilePath.Value());
+                            assemblySearchDirectories.Insert(0, Path.GetDirectoryName(projectFileFullPath)); // favour user code over dashing code
                             try {
-                                ExecuteAddWeave(projectFilePath, configurationType, assemblyExtension);
+                                ExecuteAddWeave(projectFileFullPath, configurationType, assemblyExtension);
                                 return 0;
                             }
                             catch (Exception ex) {
@@ -285,15 +288,14 @@
                 });
         }
 
-        private static void ExecuteAddWeave(CommandOption projectFilePath, CommandOption configurationType, CommandOption assemblyExtension) {
-            var seeder = new Seeder();
-            seeder.Execute(
-                LoadType<ISeeder>(seederAssemblyPath.Value(), seederType.Value()),
-                LoadType<IConfiguration>(configurationAssemblyPath.Value(), configurationType.Value()),
-                connectionString.Value(),
-                provider.HasValue()
-                    ? provider.Value()
-                    : "System.Data.SqlClient");
+        private static void ExecuteAddWeave(string projectFileFullPath, CommandOption configurationType, CommandOption assemblyExtension) {
+            if (!File.Exists(projectFileFullPath)) {
+                throw new Exception($"Project {projectFileFullPath} does not exist");
+            }
+            
+            var dashingProject = new Project(projectFileFullPath);
+            dashingProject.Xml.AddPropertyGroup().AddProperty("WeaveArguments", $"-p \"$(MSBuildThisFileDirectory)$(OutputPath)$(AssemblyName).{assemblyExtension.Value()}\" -t  \"{configurationType.Value()}\"");
+            dashingProject.Save();
         }
 
         private static IEnumerable<KeyValuePair<string, string>> GetExtraPluralizationWords(CommandOption extraPluralizationWords) {
@@ -376,7 +378,7 @@
                     }
                 }
 
-                return context.LoadFromAssemblyName(name);
+                return null;
             };
 #else
             assemblySearchDirectories = (ConfigurationManager.AppSettings["AssemblySearchPaths"]
