@@ -158,7 +158,7 @@
                     }
 
                     if (parentMemberExpression.Expression.NodeType == ExpressionType.Parameter) {
-                        var map = this.configuration.GetMap(memberExpression.Member.DeclaringType);
+                        var map = this.configuration.GetMap(((ParameterExpression)parentMemberExpression.Expression).Type);
                         if (map == null) {
                             throw new InvalidOperationException($"Unable to find map for type {memberExpression.Member.DeclaringType}");
                         }
