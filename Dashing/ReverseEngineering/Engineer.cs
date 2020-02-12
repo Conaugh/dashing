@@ -198,6 +198,7 @@
             mapColumn.IsExcludedByDefault = false;
             mapColumn.IsIgnored = false;
             mapColumn.IsNullable = column.IsNullable;
+            mapColumn.Default = column.Default;
             mapColumn.IsPrimaryKey = column.IsPrimaryKey; // HACK - MySql issue with primary keys?
             if (mapColumn.IsPrimaryKey) {
                 map.PrimaryKey = mapColumn;
